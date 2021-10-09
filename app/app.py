@@ -3,6 +3,7 @@ import os, sys
 # import ipdb; ipdb.set_trace()
 
 from flask import Flask, request, jsonify;
+from flask_cors import CORS
 try:
     from app.tables import Aluno, Disciplina, Turma, HistoricoEscolar, PreRequisito, Model
     from app.db import Banco
@@ -12,6 +13,7 @@ except:
 
 
 app = Flask(__name__);
+CORS(app)
 
 password = os.getenv("REDIS_PASSWORD", "senhaPadrao")
 
@@ -22,7 +24,7 @@ redis = Banco(password=password)
 ROTAS = {
     'alunos': 'Aluno',
     'disciplinas': 'Disciplina',
-    'turmas': 'Turmas',
+    'turmas': 'Turma',
     'historicos': 'HistoricoEscolar',
     'pre-requisitos': 'PreRequisito'
 }
@@ -35,6 +37,34 @@ TABELAS = {
     'pre-requisitos': PreRequisito
 }
 
+
+def busca_por_items(termos_busca: dict, dicionarios: list):
+
+    def busca_item(nome, valor):
+        r = []
+        for dic in dicionarios:
+            try:
+                if dic[nome] == valor:
+                    # import ipdb; ipdb.set_trace()
+                    r.append(dic)
+            except KeyError:
+                continue
+        return r
+
+    # import ipdb; ipdb.set_trace()
+    for key, valor in termos_busca.items():
+        retorno = []
+        item = busca_item(key, valor)
+        if item != None:
+            retorno.extend(item)
+        
+        dicionarios = retorno
+        if dicionarios == {}: 
+            return []
+    
+    return dicionarios
+
+
 @app.get("/")
 def home():
     return """
@@ -45,38 +75,40 @@ def home():
         </div>
     """
 
-@app.get('/api/<string:table_name>/')
+@app.get("/api/allNames")
+def all_names():
+    # import ipdb; ipdb.set_trace()
+    return jsonify(list(TABELAS.keys()))
+
+@app.get('/api/get/<string:table_name>/')
 def get_all(table_name: str):
     table_name = table_name.lower()
     nome_tabela = ROTAS[table_name]
-    data = dict(request.values)
+    data = request.values.to_dict()
+    items = redis.search_for_key(f"*{nome_tabela}*", getvalues=True)
 
+    dicionarios = []
+    for item in items:
+        dicionarios += list(item.values())
+
+    # import ipdb; ipdb.set_trace()
     if len(data) == 0:
-        retorno = list(redis.search_for_key(f"*{nome_tabela}*", getvalues=True))
+        retorno = dicionarios
     
     else:
-        retorno = {data}        
+        retorno = busca_por_items(data, dicionarios)
+        # import ipdb; ipdb.set_trace()
+             
     # print(tabela)
-    # import ipdb; ipdb.set_trace()
     return jsonify(retorno)
-
-
-@app.post("/api/<string:table_name>/")
-def get_many(table_name):
-    table_name = table_name.lower()
-    nome_tabela = ROTAS[table_name]
-
-    tabelas = redis.search_for_key(f"*{nome_tabela}*", getvalues=True)
-    import ipdb; ipdb.set_trace()
     
 
 
-@app.put('/api/<string:table_name>/')
+@app.put('/api/add/<string:table_name>/')
 def set_in_db(table_name):
     table_name = table_name.lower()
     nome_tabela = ROTAS[table_name]
     data = dict(request.values)
-    print(data)
     # import ipdb; ipdb.set_trace()
         
     # Adicionar novo registo
@@ -84,17 +116,11 @@ def set_in_db(table_name):
     tabela: Model = TABELAS[table_name](data)
     tabela.fields_values[0] = ultimo
 
-    # nome = '{}:{}'.format(tabela.table_name, ultimo)
-
     response = redis.set_one(tabela)
     status = "Ok" if response else "Error"
     saida = {"status": status}
 
     return jsonify(saida)
-
-
-
-    # return jsonify(tabela)
 
 
 if __name__ == '__main__':

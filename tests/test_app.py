@@ -13,20 +13,24 @@ class TestApp(TestCase):
         self.base_url = "http://localhost:5000/api"
 
     def test_get_all(self):
-        url = self.base_url + "/alunos/"
+        url = self.base_url + "/get/alunos/"
         r = self.app_client.get(url)
 
         self.assertEqual(r.status_code, 200)
 
     def test_get_many(self):
-        data = {"id": 2}
-        url = self.base_url + "/alunos/?"
+        data = {'curso': 'Engenharia ELétrica'}
+        url = self.base_url + "/get/alunos/?"
         url += urlencode(data)
-        response = self.app_client.post(url)
-        import ipdb; ipdb.set_trace()
+        response = self.app_client.get(url, data=data)
+        # print(response.json)
+        for item in response.json:
+            for key, valor in data.items():
+                self.assertEqual(item[key], valor)
+        # import ipdb; ipdb.set_trace()
     
     def test_put_new_aluno(self):
-        url = self.base_url + "/alunos/"
+        url = self.base_url + "/add/alunos/"
         aluno = {
             '_id': '6', 'curso': 'Engenharia Mecânica',
             'nome': 'Edgar Galván', 'numeroAluno': '106', 'tipoAluno': '1'}
@@ -36,3 +40,10 @@ class TestApp(TestCase):
         self.assertEqual(response.json["status"], "Ok")
 
         # import ipdb; ipdb.set_trace()
+
+    def test_get_all_names(self):
+        url = self.base_url + "/allNames"
+        print(url)
+        response = self.app_client.get(url)
+        # import ipdb; ipdb.set_trace()
+        self.assertEqual(response.status_code, 200)

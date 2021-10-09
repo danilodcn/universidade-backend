@@ -14,6 +14,7 @@ coverage = "*"
 pytest-cov = "*"
 pysqlite3 = "*"
 pytest-xdist = "*"
+flask-cors = "*"
 
 [dev-packages]
 
