@@ -1,0 +1,1 @@
+web:  "universidade_backend.wsgi"gunicorn
